@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "MemCP": {
+      "command": "npx",
+      "args": ["-y", "mcp-knowledge-graph", "--memory-path", "./memories/memory.jsonl"]
+    }
+  }
+}
