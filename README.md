@@ -156,6 +156,205 @@ export function useUpdateProfile() {
 }
 ```
 
+## 🏗️ Service & Hook Pattern Architecture
+
+This template follows a clean separation of concerns using the **Service Layer Pattern** combined with **Custom React Hooks**. This architecture provides maintainable, testable, and reusable code structure.
+
+### Service Layer Pattern
+
+The service layer acts as an abstraction between your React components and external APIs (Xano). Services handle all API communication, data transformation, and business logic.
+
+#### Service Structure (`src/services/`)
+
+```javascript
+// src/services/authService.js
+import { api } from "../lib/axios";
+
+export const authService = {
+  // Login user
+  async login(email, password) {
+    const response = await api.post("/auth/login", { email, password });
+    return response.data;
+  },
+
+  // Get current user
+  async getCurrentUser() {
+    const response = await api.post("/auth/me");
+    return response.data;
+  },
+
+  // Update user profile
+  async updateProfile(userData) {
+    const response = await api.patch("/auth/profile", userData);
+    return response.data;
+  },
+
+  // Logout user
+  async logout() {
+    const response = await api.post("/auth/logout");
+    return response.data;
+  },
+};
+```
+
+#### Benefits of Service Layer
+
+- **Separation of Concerns**: API logic is isolated from UI components
+- **Reusability**: Services can be used across different components
+- **Testability**: Easy to mock services for unit testing
+- **Maintainability**: API changes only require service updates
+- **Type Safety**: Can be easily extended with TypeScript
+
+### Custom Hook Pattern
+
+Custom hooks encapsulate React Query logic and provide a clean interface for components to interact with data and mutations.
+
+#### Hook Structure (`src/hooks/`)
+
+```javascript
+// src/hooks/useAuth.js
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { authService } from "../services/authService";
+
+export function useAuth() {
+  const queryClient = useQueryClient();
+
+  // Query hook for current user
+  const userQuery = useQuery({
+    queryKey: ["user"],
+    queryFn: authService.getCurrentUser,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+  });
+
+  // Mutation hook for login
+  const loginMutation = useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data) => {
+      // Update cache and redirect
+      queryClient.setQueryData(["user"], data.user);
+      queryClient.invalidateQueries(["user"]);
+    },
+    onError: (error) => {
+      // Handle login errors
+      console.error("Login failed:", error);
+    },
+  });
+
+  // Mutation hook for logout
+  const logoutMutation = useMutation({
+    mutationFn: authService.logout,
+    onSuccess: () => {
+      // Clear cache and redirect
+      queryClient.clear();
+    },
+  });
+
+  return {
+    user: userQuery.data,
+    isLoading: userQuery.isLoading,
+    isError: userQuery.isError,
+    error: userQuery.error,
+    login: loginMutation.mutate,
+    logout: logoutMutation.mutate,
+    isLoggingIn: loginMutation.isPending,
+    isLoggingOut: logoutMutation.isPending,
+  };
+}
+```
+
+#### Benefits of Custom Hooks
+
+- **Clean Component Logic**: Components focus on UI, not data fetching
+- **Reusable Logic**: Hooks can be shared across multiple components
+- **Automatic Caching**: TanStack Query handles caching, background updates
+- **Error Handling**: Centralized error handling and loading states
+- **Optimistic Updates**: Easy to implement optimistic UI updates
+
+### Complete Pattern Example
+
+Here's how the service and hook patterns work together:
+
+```javascript
+// 1. Service handles API communication
+// src/services/userService.js
+export const userService = {
+  async fetchUsers() {
+    const response = await api.get("/users");
+    return response.data;
+  },
+
+  async createUser(userData) {
+    const response = await api.post("/users", userData);
+    return response.data;
+  },
+};
+
+// 2. Hook encapsulates React Query logic
+// src/hooks/useUsers.js
+export function useUsers() {
+  const queryClient = useQueryClient();
+
+  const usersQuery = useQuery({
+    queryKey: ["users"],
+    queryFn: userService.fetchUsers,
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: userService.createUser,
+    onSuccess: (newUser) => {
+      // Optimistically update cache
+      queryClient.setQueryData(["users"], (oldUsers) => [...oldUsers, newUser]);
+    },
+  });
+
+  return {
+    users: usersQuery.data || [],
+    isLoading: usersQuery.isLoading,
+    createUser: createUserMutation.mutate,
+    isCreating: createUserMutation.isPending,
+  };
+}
+
+// 3. Component uses the hook
+// src/components/UserList.jsx
+export function UserList() {
+  const { users, isLoading, createUser, isCreating } = useUsers();
+
+  if (isLoading) return <LoadingSpinner />;
+
+  return (
+    <div>
+      {users.map((user) => (
+        <UserCard key={user.id} user={user} />
+      ))}
+      <CreateUserForm onSubmit={createUser} isSubmitting={isCreating} />
+    </div>
+  );
+}
+```
+
+### Best Practices
+
+1. **Service Functions**: Keep them pure and focused on API communication
+2. **Hook Naming**: Use descriptive names like `useUsers`, `useUserProfile`
+3. **Query Keys**: Use consistent, hierarchical query keys for proper cache management
+4. **Error Handling**: Implement proper error boundaries and user feedback
+5. **Loading States**: Always provide loading indicators for better UX
+6. **Cache Invalidation**: Strategically invalidate related queries after mutations
+7. **Optimistic Updates**: Use `setQueryData` for immediate UI feedback
+
+### Extending the Pattern
+
+To add new features:
+
+1. **Create Service**: Add methods to existing services or create new ones
+2. **Create Hook**: Build custom hooks that use the service methods
+3. **Use in Components**: Import and use the hooks in your React components
+4. **Update Cache**: Handle cache invalidation and optimistic updates
+
+This pattern scales well as your application grows and makes it easy to maintain clean, testable code while providing excellent developer and user experience.
+
 ## 🚀 Deployment
 
 ### Build for Production
