@@ -421,9 +421,80 @@ npm run lint         # Code linting
 
 ### Style Customization
 
-- Modify `tailwind.config.js` for design tokens
+- Use CSS configuration with `@config` directive for design tokens
 - Add global styles in `src/index.css`
 - Install additional shadcn/ui components: `npx shadcn-ui@latest add button`
+
+#### Adding New shadcn/ui Components
+
+When installing new shadcn/ui components, you'll need to update import paths and ensure proper theme integration:
+
+1. **Install the component**:
+
+   ```bash
+   npx shadcn-ui@latest add button
+   npx shadcn-ui@latest add card
+   npx shadcn-ui@latest add dialog
+   ```
+
+2. **Update import paths** - shadcn components are installed to `src/components/ui/`:
+
+   ```javascript
+   // ✅ Correct import path
+   import { Button } from "@/components/ui/button";
+   import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
+   // ❌ Incorrect import path (don't use relative paths)
+   import { Button } from "../components/ui/button";
+   ```
+
+3. **Ensure theme integration** - Components automatically use your Tailwind theme:
+
+   ```javascript
+   // The Button component will automatically use your theme colors
+   <Button variant="default" className="bg-primary text-primary-foreground">
+     Click me
+   </Button>
+   ```
+
+4. **Customize component variants** using CSS configuration:
+
+   ```css
+   /* src/index.css */
+   @import "tailwindcss";
+
+   @config {
+     theme: {
+       colors: {
+         primary: hsl(var(--primary));
+         primary-foreground: hsl(var(--primary-foreground));
+         /* Add more custom colors as needed */
+       }
+     }
+   }
+   ```
+
+5. **Global CSS variables** - shadcn components use CSS variables for theming:
+
+   ```css
+   /* src/index.css */
+   :root {
+     --background: 0 0% 100%;
+     --foreground: 222.2 84% 4.9%;
+     --primary: 222.2 47.4% 11.2%;
+     --primary-foreground: 210 40% 98%;
+     /* Add more CSS variables for custom theming */
+   }
+
+   .dark {
+     --background: 222.2 84% 4.9%;
+     --foreground: 210 40% 98%;
+     --primary: 210 40% 98%;
+     --primary-foreground: 222.2 47.4% 11.2%;
+   }
+   ```
+
+**Note**: The `@/` alias in import paths is configured in your `jsconfig.json` to point to the `src/` directory, making imports clean and consistent across your project.
 
 ## 🤝 Contributing
 
